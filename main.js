@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 // --- Scene Setup ---
 const container = document.getElementById('canvas-container');
@@ -19,19 +22,33 @@ const TPP_DISTANCE = 8.5;
 const TPP_HEIGHT = 3.6;
 const currentCameraLookAt = new THREE.Vector3(0, 1.2, 0);
 
-// --- Renderer Setup ---
+// --- High-Performance Renderer Setup ---
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   alpha: false,
-  powerPreference: 'high-performance'
+  powerPreference: 'high-performance',
+  stencil: false,
+  depth: true
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // Locked to 1.0 for lag-free 60+ FPS
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 container.appendChild(renderer.domElement);
+
+// Optimized Pre-Filtered PMREM HDRI Environment Map
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+pmremGenerator.compileEquirectangularShader();
+
+const rgbeLoader = new RGBELoader();
+rgbeLoader.load('public/textures/sunset.hdr', (envTexture) => {
+  const envMap = pmremGenerator.fromEquirectangular(envTexture).texture;
+  scene.environment = envMap;
+  envTexture.dispose();
+  pmremGenerator.dispose();
+});
 
 // --- Lighting ---
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.78);
@@ -54,7 +71,8 @@ dirLight.shadow.camera.left = -d;
 dirLight.shadow.camera.right = d;
 dirLight.shadow.camera.top = d;
 dirLight.shadow.camera.bottom = -d;
-dirLight.shadow.bias = -0.0005;
+dirLight.shadow.bias = -0.00008;
+dirLight.shadow.normalBias = 0.04;
 scene.add(dirLight);
 
 const fillLight = new THREE.DirectionalLight(0x90caf9, 0.35);
@@ -67,23 +85,45 @@ const grassPalette = [
   '#59a72c', '#305f15', '#62b531', '#3e7d1d'
 ];
 
-function createMinecraftGrassTopTexture(repeatX = 1, repeatY = 1) {
+function createRealisticLawnTexture(repeatX = 1, repeatY = 1) {
   const canvas = document.createElement('canvas');
-  canvas.width = 32;
-  canvas.height = 32;
+  canvas.width = 512;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d');
-  for (let y = 0; y < 32; y++) {
-    for (let x = 0; x < 32; x++) {
-      ctx.fillStyle = grassPalette[Math.floor(Math.random() * grassPalette.length)];
-      ctx.fillRect(x, y, 1, 1);
-    }
+
+  // Deep rich lawn base
+  ctx.fillStyle = '#2d6526';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Soft organic gradient mottling
+  const grad = ctx.createRadialGradient(256, 256, 40, 256, 256, 320);
+  grad.addColorStop(0, '#3a7d32');
+  grad.addColorStop(0.5, '#306b29');
+  grad.addColorStop(1, '#24561e');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Fine organic blade noise and tone variation
+  const colors = ['#285921', '#37752e', '#458c3a', '#1e461a', '#4e9a41', '#306927'];
+  for (let i = 0; i < 9000; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 512;
+    const len = 2 + Math.random() * 4;
+    ctx.strokeStyle = colors[Math.floor(Math.random() * colors.length)];
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (Math.random() - 0.5) * 2, y - len);
+    ctx.stroke();
   }
+
   const texture = new THREE.CanvasTexture(canvas);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
   return texture;
 }
 
@@ -211,9 +251,9 @@ function createZoneFloatingBillboard(zone) {
 const INFINITE_MAP_SIZE = 1400;
 const groundGeo = new THREE.PlaneGeometry(INFINITE_MAP_SIZE, INFINITE_MAP_SIZE);
 const groundMat = new THREE.MeshStandardMaterial({
-  map: createMinecraftGrassTopTexture(INFINITE_MAP_SIZE / 2, INFINITE_MAP_SIZE / 2),
-  roughness: 0.88,
-  metalness: 0.05
+  map: createRealisticLawnTexture(INFINITE_MAP_SIZE / 18, INFINITE_MAP_SIZE / 18),
+  roughness: 0.90,
+  metalness: 0.02
 });
 const infiniteGround = new THREE.Mesh(groundGeo, groundMat);
 infiniteGround.rotation.x = -Math.PI / 2;
@@ -642,14 +682,12 @@ const cloudMat = new THREE.MeshLambertMaterial({
 
 function createVoxelCloud() {
   const cloudGroup = new THREE.Group();
-  const numBlocks = 3 + Math.floor(Math.random() * 3);
-  for (let i = 0; i < numBlocks; i++) {
-    const bw = 5 + Math.random() * 8;
-    const bh = 2 + Math.random() * 2.5;
-    const bd = 4 + Math.random() * 6;
-    const block = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), cloudMat);
-    block.position.set((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 6);
-    cloudGroup.add(block);
+  const numPuffs = 4 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < numPuffs; i++) {
+    const radius = 3.5 + Math.random() * 4.5;
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(radius, 14, 14), cloudMat);
+    puff.position.set((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 2.2, (Math.random() - 0.5) * 8);
+    cloudGroup.add(puff);
   }
   return cloudGroup;
 }
@@ -706,24 +744,24 @@ function createStreetlight(x, z, rotY = 0) {
 // 4. STYLIZED LOW-POLY NATURE TREES (Aesthetic GUI Design)
 // Rich faceted foliage clusters, tapered trunks & vibrant biomes
 // ==========================================
-const woodBarkMat = new THREE.MeshLambertMaterial({ color: 0x422918, flatShading: true });
+const woodBarkMat = new THREE.MeshLambertMaterial({ color: 0x422918 });
 
 // Palettes: 0: Lush Emerald, 1: Golden Autumn, 2: Cherry Blossom Sakura
 const treePalettes = [
   {
-    c1: new THREE.MeshLambertMaterial({ color: 0x15803d, flatShading: true }),
-    c2: new THREE.MeshLambertMaterial({ color: 0x16a34a, flatShading: true }),
-    c3: new THREE.MeshLambertMaterial({ color: 0x22c55e, flatShading: true })
+    c1: new THREE.MeshLambertMaterial({ color: 0x15803d, flatShading: false }),
+    c2: new THREE.MeshLambertMaterial({ color: 0x16a34a, flatShading: false }),
+    c3: new THREE.MeshLambertMaterial({ color: 0x22c55e, flatShading: false })
   },
   {
-    c1: new THREE.MeshLambertMaterial({ color: 0xb45309, flatShading: true }),
-    c2: new THREE.MeshLambertMaterial({ color: 0xd97706, flatShading: true }),
-    c3: new THREE.MeshLambertMaterial({ color: 0xf59e0b, flatShading: true })
+    c1: new THREE.MeshLambertMaterial({ color: 0xb45309, flatShading: false }),
+    c2: new THREE.MeshLambertMaterial({ color: 0xd97706, flatShading: false }),
+    c3: new THREE.MeshLambertMaterial({ color: 0xf59e0b, flatShading: false })
   },
   {
-    c1: new THREE.MeshLambertMaterial({ color: 0xdb2777, flatShading: true }),
-    c2: new THREE.MeshLambertMaterial({ color: 0xec4899, flatShading: true }),
-    c3: new THREE.MeshLambertMaterial({ color: 0xf472b6, flatShading: true })
+    c1: new THREE.MeshLambertMaterial({ color: 0xdb2777, flatShading: false }),
+    c2: new THREE.MeshLambertMaterial({ color: 0xec4899, flatShading: false }),
+    c3: new THREE.MeshLambertMaterial({ color: 0xf472b6, flatShading: false })
   }
 ];
 
@@ -751,7 +789,7 @@ function buildStylizedLowPolyTree(scale = 1.0, typeIndex = 0) {
 
   // 3. Faceted Low-Poly Foliage Canopy (Multi-cluster organic crown)
   // Main Center Canopy Cluster
-  const mainGeo = new THREE.IcosahedronGeometry(1.85 * scale, 0);
+  const mainGeo = new THREE.IcosahedronGeometry(1.85 * scale, 2);
   const mainCanopy = new THREE.Mesh(mainGeo, pal.c1);
   mainCanopy.position.set(0, 3.2 * scale, 0);
   mainCanopy.rotation.set(0.2, 0.4, 0.1);
@@ -759,34 +797,31 @@ function buildStylizedLowPolyTree(scale = 1.0, typeIndex = 0) {
   tree.add(mainCanopy);
 
   // Left Canopy Lobe
-  const leftGeo = new THREE.IcosahedronGeometry(1.35 * scale, 0);
+  const leftGeo = new THREE.IcosahedronGeometry(1.35 * scale, 2);
   const leftCanopy = new THREE.Mesh(leftGeo, pal.c2);
   leftCanopy.position.set(-0.85 * scale, 3.1 * scale, 0.45 * scale);
   leftCanopy.rotation.set(-0.3, 0.6, 0.2);
-  leftCanopy.castShadow = true;
   tree.add(leftCanopy);
 
   // Right Canopy Lobe
-  const rightGeo = new THREE.IcosahedronGeometry(1.4 * scale, 0);
+  const rightGeo = new THREE.IcosahedronGeometry(1.4 * scale, 2);
   const rightCanopy = new THREE.Mesh(rightGeo, pal.c2);
   rightCanopy.position.set(0.85 * scale, 3.3 * scale, -0.35 * scale);
   rightCanopy.rotation.set(0.4, -0.5, -0.1);
-  rightCanopy.castShadow = true;
   tree.add(rightCanopy);
 
   // Front Sub-Lobe
-  const frontGeo = new THREE.IcosahedronGeometry(1.15 * scale, 0);
+  const frontGeo = new THREE.IcosahedronGeometry(1.15 * scale, 2);
   const frontCanopy = new THREE.Mesh(frontGeo, pal.c3);
   frontCanopy.position.set(0.25 * scale, 2.7 * scale, 0.85 * scale);
   frontCanopy.rotation.set(-0.2, 0.3, -0.4);
   tree.add(frontCanopy);
 
   // Top Sunlit Crown Crest
-  const topGeo = new THREE.IcosahedronGeometry(1.25 * scale, 0);
+  const topGeo = new THREE.IcosahedronGeometry(1.25 * scale, 2);
   const topCanopy = new THREE.Mesh(topGeo, pal.c3);
   topCanopy.position.set(0, 4.3 * scale, 0);
   topCanopy.rotation.set(0.3, -0.2, 0.4);
-  topCanopy.castShadow = true;
   tree.add(topCanopy);
 
   return tree;
@@ -1207,8 +1242,8 @@ function updateNPCCars() {
 // 4-CORNER BOUNDING BOX CHECK
 // Ensures bumper, wheels & all corners stay 100% on road surface!
 function isCarBodyOnRoad(x, z, heading) {
-  const halfL = 1.95; // Half length of car body
-  const halfW = 0.98; // Half width of car body
+  const halfL = 2.22; // Half length of Ferrari 458 CAD body (~4.52m total)
+  const halfW = 0.98; // Half width of Ferrari 458 CAD body (~1.94m total)
 
   const sin = Math.sin(heading);
   const cos = Math.cos(heading);
@@ -1234,266 +1269,163 @@ function isCarBodyOnRoad(x, z, heading) {
 }
 
 // ==========================================
-// 7. CYBER SPORTS COUPE 3D CAR (HIGH-END GUI & AERODYNAMICS)
-// Widebody hypercar stance, cyber neon lights, aero diffuser & alloy rims
+// 7. REALISTIC HIGH-FIDELITY 3D CAD SUPERCAR
+// Authentic Ferrari 458 Italia CAD Asset (.glb)
+// Multi-layer Clearcoat Paint, Metallic Rims,
+// Calipers, Tinted Curved Glass & Real Contact Shadow
 // ==========================================
 const carGroup = new THREE.Group();
 const wheelsToRoll = [];
 const frontSteerWheels = [];
 let playerBrakeMat = null;
+let carBodyMaterial = null;
 
-function createCarWheel(radius, width, rimColor = 0xf59e0b) {
-  const wheelAssembly = new THREE.Group();
-  const steerPivot = new THREE.Group();
-  wheelAssembly.add(steerPivot);
+// Initialize car body lacquer finish
+carBodyMaterial = new THREE.MeshPhysicalMaterial({
+  color: 0xd00000, // Iconic Rosso Corsa Ferrari Red
+  metalness: 0.9,
+  roughness: 0.22,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.03
+});
 
-  const rollGroup = new THREE.Group();
-  steerPivot.add(rollGroup);
+const rimMaterial = new THREE.MeshStandardMaterial({
+  color: 0xf1f5f9,
+  metalness: 0.96,
+  roughness: 0.12
+});
 
-  // 1. Performance Low-Profile Tire
-  const tireGeo = new THREE.CylinderGeometry(radius, radius, width, 24);
-  const tireMat = new THREE.MeshStandardMaterial({ color: 0x181e29, roughness: 0.85 });
-  const tire = new THREE.Mesh(tireGeo, tireMat);
-  tire.rotation.z = Math.PI / 2;
-  tire.castShadow = true;
-  rollGroup.add(tire);
+const glassMaterial = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff,
+  metalness: 0.15,
+  roughness: 0.05,
+  transparent: true,
+  opacity: 0.40,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.03
+});
 
-  // 2. Diamond-Cut Alloy Star Rim
-  const rimGeo = new THREE.CylinderGeometry(radius * 0.62, radius * 0.62, width + 0.02, 16);
-  const rimMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.9, roughness: 0.15 });
-  const rim = new THREE.Mesh(rimGeo, rimMat);
-  rim.rotation.z = Math.PI / 2;
-  rollGroup.add(rim);
+const trimMaterial = new THREE.MeshStandardMaterial({
+  color: 0x111827,
+  metalness: 0.82,
+  roughness: 0.35
+});
 
-  // 3. Cyber Gold Center Hub & Outer Rim Lip
-  const lipGeo = new THREE.CylinderGeometry(radius * 0.72, radius * 0.72, width + 0.025, 16);
-  const lipMat = new THREE.MeshStandardMaterial({ color: rimColor, metalness: 0.85, roughness: 0.2 });
-  const lip = new THREE.Mesh(lipGeo, lipMat);
-  lip.rotation.z = Math.PI / 2;
-  rollGroup.add(lip);
+const brakeCaliperMaterial = new THREE.MeshStandardMaterial({
+  color: 0xf59e0b, // Brembo Gold Calipers
+  metalness: 0.75,
+  roughness: 0.22
+});
 
-  // 4. Red Brembo Racing Brake Caliper
-  const caliperGeo = new THREE.BoxGeometry(0.12, radius * 0.45, 0.22);
-  const caliperMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.6, roughness: 0.3 });
-  const caliper = new THREE.Mesh(caliperGeo, caliperMat);
-  caliper.position.set(0, radius * 0.35, 0);
-  steerPivot.add(caliper);
+const lightsRedMaterial = new THREE.MeshStandardMaterial({
+  color: 0xff1744,
+  emissive: 0xff1744,
+  emissiveIntensity: 1.3
+});
+playerBrakeMat = lightsRedMaterial;
 
-  return { assembly: wheelAssembly, rollGroup, steerPivot };
-}
+const headlightsMaterial = new THREE.MeshStandardMaterial({
+  color: 0xffffff,
+  emissive: 0xdbeafe,
+  emissiveIntensity: 2.6
+});
 
-function buildCyberSportsCar() {
-  // Premium Materials
-  const goldBodyMat = new THREE.MeshStandardMaterial({
-    color: 0xf59e0b,
-    roughness: 0.18,
-    metalness: 0.72
-  });
-  const carbonMat = new THREE.MeshStandardMaterial({
-    color: 0x0f172a,
-    roughness: 0.45,
-    metalness: 0.65
-  });
-  const darkGlassMat = new THREE.MeshStandardMaterial({
-    color: 0x050811,
-    roughness: 0.04,
-    metalness: 0.95,
-    transparent: true,
-    opacity: 0.88
-  });
-  const ledHeadMat = new THREE.MeshStandardMaterial({
-    color: 0x38bdf8,
-    emissive: 0x0284c7,
-    emissiveIntensity: 1.8
-  });
-  const headDrlMat = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    emissive: 0xffffff,
-    emissiveIntensity: 1.5
-  });
-  const neonTailMat = new THREE.MeshStandardMaterial({
-    color: 0xff1744,
-    emissive: 0xe11d48,
-    emissiveIntensity: 1.1
-  });
-  playerBrakeMat = neonTailMat;
+// Configure Draco & GLTF Loaders
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('public/draco/');
 
-  const exhaustMat = new THREE.MeshStandardMaterial({
-    color: 0x06b6d4,
-    emissive: 0x06b6d4,
-    emissiveIntensity: 1.5
-  });
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
 
-  // 1. Aerodynamic Carbon Undertray Chassis
-  const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.26, 4.3), carbonMat);
-  chassis.position.y = 0.36;
-  chassis.castShadow = true;
-  carGroup.add(chassis);
+// Asynchronously load the authentic CAD vehicle
+gltfLoader.load(
+  'public/ferrari.glb',
+  (gltf) => {
+    const cadModel = gltf.scene.children[0];
 
-  // 2. Front Race Splitter with Side Aero Canards
-  const frontSplitter = new THREE.Mesh(new THREE.BoxGeometry(2.14, 0.08, 0.45), carbonMat);
-  frontSplitter.position.set(0, 0.26, 2.15);
-  carGroup.add(frontSplitter);
+    // Align CAD car to face world +Z (model natively points along -Z)
+    cadModel.rotation.y = Math.PI;
 
-  [-1.04, 1.04].forEach(sx => {
-    const canard = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.32), carbonMat);
-    canard.position.set(sx, 0.38, 2.05);
-    carGroup.add(canard);
-  });
+    // Apply high-end PBR materials
+    const bodyMesh = cadModel.getObjectByName('body');
+    if (bodyMesh) bodyMesh.material = carBodyMaterial;
 
-  // 3. Sculpted Widebody Cyber Sports Main Body
-  const mainBody = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.48, 4.0), goldBodyMat);
-  mainBody.position.set(0, 0.68, 0);
-  mainBody.castShadow = true;
-  carGroup.add(mainBody);
+    ['rim_fl', 'rim_fr', 'rim_rl', 'rim_rr'].forEach((name) => {
+      const rim = cadModel.getObjectByName(name);
+      if (rim) rim.material = rimMaterial;
+    });
 
-  // Slanted Aerodynamic Hood Section
-  const hood = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.22, 1.6), goldBodyMat);
-  hood.position.set(0, 0.88, 1.1);
-  hood.rotation.x = 0.06;
-  hood.castShadow = true;
-  carGroup.add(hood);
+    const glassMesh = cadModel.getObjectByName('glass');
+    if (glassMesh) glassMesh.material = glassMaterial;
 
-  // Dual Hood Cooling Vents
-  [-0.45, 0.45].forEach(vx => {
-    const vent = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.55), carbonMat);
-    vent.position.set(vx, 0.98, 1.05);
-    carGroup.add(vent);
-  });
+    const trimMesh = cadModel.getObjectByName('trim');
+    if (trimMesh) trimMesh.material = trimMaterial;
 
-  // Front Intake Bumper
-  const frontGrille = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.22, 0.1), carbonMat);
-  frontGrille.position.set(0, 0.48, 2.11);
-  carGroup.add(frontGrille);
+    const brakesMesh = cadModel.getObjectByName('brakes');
+    if (brakesMesh) brakesMesh.material = brakeCaliperMaterial;
 
-  // 4. Streamlined Cockpit Canopy (Tinted Fastback Glass)
-  const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.5, 2.1), darkGlassMat);
-  canopy.position.set(0, 1.12, -0.2);
-  canopy.castShadow = true;
-  carGroup.add(canopy);
+    const lightsRedMesh = cadModel.getObjectByName('lights_red');
+    if (lightsRedMesh) lightsRedMesh.material = lightsRedMaterial;
 
-  // Slanted Windshield Face
-  const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.48, 0.7), darkGlassMat);
-  windshield.position.set(0, 1.02, 0.65);
-  windshield.rotation.x = -0.45;
-  carGroup.add(windshield);
+    const lightsMesh = cadModel.getObjectByName('lights');
+    if (lightsMesh) lightsMesh.material = headlightsMaterial;
 
-  // Fastback Rear Window
-  const rearGlass = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.45, 0.75), darkGlassMat);
-  rearGlass.position.set(0, 1.02, -1.05);
-  rearGlass.rotation.x = 0.45;
-  carGroup.add(rearGlass);
+    cadModel.traverse((child) => {
+      if (child.isMesh) {
+        if (child.name === 'body' || child.name.startsWith('wheel') || child.name.startsWith('rim') || child.name === 'tire') {
+          child.castShadow = true;
+        }
+        child.receiveShadow = true;
+      }
+    });
 
-  // Carbon Fiber Roof Center
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.08, 1.35), carbonMat);
-  roof.position.set(0, 1.38, -0.25);
-  carGroup.add(roof);
+    // Front steerable wheels setup
+    const wheel_fl = cadModel.getObjectByName('wheel_fl');
+    const wheel_fr = cadModel.getObjectByName('wheel_fr');
+    const wheel_rl = cadModel.getObjectByName('wheel_rl');
+    const wheel_rr = cadModel.getObjectByName('wheel_rr');
 
-  // 5. Sleek Aerodynamic Side Mirrors
-  [-0.92, 0.92].forEach((mx, idx) => {
-    const mirrorStem = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.08), carbonMat);
-    mirrorStem.position.set(mx, 1.02, 0.5);
-    carGroup.add(mirrorStem);
+    if (wheel_fl && wheel_fr) {
+      // Front Left Wheel Steer Pivot
+      const steerFL = new THREE.Group();
+      steerFL.position.copy(wheel_fl.position);
+      cadModel.add(steerFL);
+      wheel_fl.position.set(0, 0, 0);
+      steerFL.add(wheel_fl);
+      frontSteerWheels.push(steerFL);
+      wheelsToRoll.push(wheel_fl);
 
-    const mirrorHead = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.12, 0.15), goldBodyMat);
-    mirrorHead.position.set(mx + (idx === 0 ? -0.1 : 0.1), 1.04, 0.5);
-    carGroup.add(mirrorHead);
+      // Front Right Wheel Steer Pivot
+      const steerFR = new THREE.Group();
+      steerFR.position.copy(wheel_fr.position);
+      cadModel.add(steerFR);
+      wheel_fr.position.set(0, 0, 0);
+      steerFR.add(wheel_fr);
+      frontSteerWheels.push(steerFR);
+      wheelsToRoll.push(wheel_fr);
+    }
 
-    const mirrorLed = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.12), ledHeadMat);
-    mirrorLed.position.set(mx + (idx === 0 ? -0.2 : 0.2), 1.04, 0.5);
-    carGroup.add(mirrorLed);
-  });
+    if (wheel_rl) wheelsToRoll.push(wheel_rl);
+    if (wheel_rr) wheelsToRoll.push(wheel_rr);
 
-  // 6. Cyber Headlight Assemblies (Projector Lenses + White DRL Blades)
-  [-0.65, 0.65].forEach(hx => {
-    // Projector Lens
-    const lens = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.12, 0.08), ledHeadMat);
-    lens.position.set(hx, 0.75, 2.07);
-    carGroup.add(lens);
+    carGroup.add(cadModel);
+    console.log('✅ Realistic CAD Supercar successfully loaded and mounted!');
+  },
+  undefined,
+  (error) => {
+    console.error('Error loading CAD Supercar:', error);
+  }
+);
 
-    // DRL Eyebrow
-    const drl = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.04, 0.08), headDrlMat);
-    drl.position.set(hx, 0.83, 2.07);
-    carGroup.add(drl);
-  });
+scene.add(carGroup);
 
-  // 7. Full-Width Cyberpunk OLED Rear Light Bar & High-Mount Brake
-  const tailBar = new THREE.Mesh(new THREE.BoxGeometry(1.88, 0.14, 0.08), neonTailMat);
-  tailBar.position.set(0, 0.76, -2.04);
-  carGroup.add(tailBar);
+// Paint Finish Selector Helper
+window.setCarPaintColor = function (hexColor) {
+  if (carBodyMaterial) {
+    carBodyMaterial.color.set(hexColor);
+  }
+};
 
-  const thirdBrake = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.06, 0.06), neonTailMat);
-  thirdBrake.position.set(0, 1.28, -1.25);
-  carGroup.add(thirdBrake);
-
-  // 8. Rear Race Diffuser & Dual Exhaust Afterburners
-  const diffuser = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.22, 0.35), carbonMat);
-  diffuser.position.set(0, 0.38, -2.05);
-  carGroup.add(diffuser);
-
-  [-0.45, 0.45].forEach(ex => {
-    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.16, 16), carbonMat);
-    tip.rotation.x = Math.PI / 2;
-    tip.position.set(ex, 0.36, -2.18);
-    carGroup.add(tip);
-
-    const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.04, 16), exhaustMat);
-    glow.rotation.x = Math.PI / 2;
-    glow.position.set(ex, 0.36, -2.22);
-    carGroup.add(glow);
-  });
-
-  // 9. Aerodynamic GT Race Spoiler
-  const wingPostL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.38, 0.22), carbonMat);
-  wingPostL.position.set(-0.65, 1.08, -1.82);
-  wingPostL.rotation.x = 0.25;
-  carGroup.add(wingPostL);
-
-  const wingPostR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.38, 0.22), carbonMat);
-  wingPostR.position.set(0.65, 1.08, -1.82);
-  wingPostR.rotation.x = 0.25;
-  carGroup.add(wingPostR);
-
-  const wingBlade = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.06, 0.48), carbonMat);
-  wingBlade.position.set(0, 1.28, -1.86);
-  wingBlade.castShadow = true;
-  carGroup.add(wingBlade);
-
-  [-0.98, 0.98].forEach(wx => {
-    const endplate = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.26, 0.52), goldBodyMat);
-    endplate.position.set(wx, 1.32, -1.86);
-    carGroup.add(endplate);
-  });
-
-  // 10. High-Performance Alloy Wheels Assembly
-  const wRadius = 0.42;
-  const wWidth = 0.32;
-
-  const wFL = createCarWheel(wRadius, wWidth);
-  wFL.assembly.position.set(-1.08, 0.42, 1.3);
-  carGroup.add(wFL.assembly);
-  frontSteerWheels.push(wFL.steerPivot);
-  wheelsToRoll.push(wFL.rollGroup);
-
-  const wFR = createCarWheel(wRadius, wWidth);
-  wFR.assembly.position.set(1.08, 0.42, 1.3);
-  carGroup.add(wFR.assembly);
-  frontSteerWheels.push(wFR.steerPivot);
-  wheelsToRoll.push(wFR.rollGroup);
-
-  const wBL = createCarWheel(wRadius, wWidth);
-  wBL.assembly.position.set(-1.08, 0.42, -1.3);
-  carGroup.add(wBL.assembly);
-  wheelsToRoll.push(wBL.rollGroup);
-
-  const wBR = createCarWheel(wRadius, wWidth);
-  wBR.assembly.position.set(1.08, 0.42, -1.3);
-  carGroup.add(wBR.assembly);
-  wheelsToRoll.push(wBR.rollGroup);
-
-  scene.add(carGroup);
-}
-buildCyberSportsCar();
 
 // ==========================================
 // 8. DRIVING PHYSICS & CONTROLS ALGORITHM
@@ -1530,6 +1462,7 @@ window.addEventListener('keydown', (e) => {
   if (['ArrowRight', 'KeyD', 'd', 'D'].includes(e.code)) keys.right = true;
   if (e.code === 'Space') { keys.handbrake = true; e.preventDefault(); }
   if (e.code === 'KeyR' || e.code === 'r') resetCar();
+  if (['KeyC', 'c', 'C'].includes(e.code)) toggleCameraMode();
   if (['KeyE', 'e', 'E'].includes(e.code)) {
     if (currentActiveZone) {
       openPageModal(currentActiveZone.id);
@@ -1558,6 +1491,26 @@ function resetCar() {
   carGroup.rotation.y = 0;
 }
 document.getElementById('reset-car-btn')?.addEventListener('click', resetCar);
+
+// Dynamic Camera Modes (0: Rear Chase, 1: Front 3/4 Showcase, 2: Side Profile)
+let cameraMode = 0;
+function toggleCameraMode() {
+  cameraMode = (cameraMode + 1) % 3;
+}
+window.toggleCameraMode = toggleCameraMode;
+document.getElementById('camera-view-btn')?.addEventListener('click', toggleCameraMode);
+
+// Paint Color Selector Interaction
+document.querySelectorAll('.color-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.color-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    const colorHex = chip.getAttribute('data-color');
+    if (colorHex && window.setCarPaintColor) {
+      window.setCarPaintColor(colorHex);
+    }
+  });
+});
 
 // ==========================================
 // 9. DEDICATED PAGE VIEWER MODAL LOGIC
@@ -1717,21 +1670,21 @@ function updatePhysics() {
     carState.position.copy(nextPos);
     carState.heading = prospectiveHeading;
     if (grassWarningEl) grassWarningEl.classList.remove('active');
-  } 
+  }
   // Else test X-only slide
   else if (isCarBodyOnRoad(nextPos.x, carState.position.z, prospectiveHeading)) {
     carState.position.x = nextPos.x;
     carState.heading = prospectiveHeading;
     carState.speed *= 0.94;
     if (grassWarningEl) grassWarningEl.classList.add('active');
-  } 
+  }
   // Else test Z-only slide
   else if (isCarBodyOnRoad(carState.position.x, nextPos.z, prospectiveHeading)) {
     carState.position.z = nextPos.z;
     carState.heading = prospectiveHeading;
     carState.speed *= 0.94;
     if (grassWarningEl) grassWarningEl.classList.add('active');
-  } 
+  }
   // Blocked by road boundary
   else {
     carState.speed *= -0.25;
@@ -1755,20 +1708,39 @@ function updatePhysics() {
     }
   }
 
-  // 5. TPP Camera Follow
-  const cameraOffset = new THREE.Vector3(0, 0, -TPP_DISTANCE).applyAxisAngle(new THREE.Vector3(0, 1, 0), carState.heading);
+  // 5. TPP Camera Follow & Dynamic Modes (Rear Chase, Front 3/4, Side Profile)
+  let camDist = TPP_DISTANCE;
+  let camHeight = TPP_HEIGHT;
+  let camAngleOffset = 0;
+  let lookAheadDist = 3.0;
+
+  if (cameraMode === 1) {
+    // Front 3/4 Dynamic Showcase View
+    camDist = 6.8;
+    camHeight = 2.2;
+    camAngleOffset = Math.PI - 0.52;
+    lookAheadDist = 0.5;
+  } else if (cameraMode === 2) {
+    // Low Side Action Profile View
+    camDist = 7.5;
+    camHeight = 1.9;
+    camAngleOffset = -Math.PI / 2.3;
+    lookAheadDist = 1.5;
+  }
+
+  const cameraOffset = new THREE.Vector3(0, 0, -camDist).applyAxisAngle(new THREE.Vector3(0, 1, 0), carState.heading + camAngleOffset);
   const idealCamPos = new THREE.Vector3()
     .copy(carState.position)
     .add(cameraOffset)
-    .add(new THREE.Vector3(0, TPP_HEIGHT, 0));
+    .add(new THREE.Vector3(0, camHeight, 0));
 
-  camera.position.lerp(idealCamPos, 0.09);
+  camera.position.lerp(idealCamPos, 0.08);
 
-  const lookAheadOffset = forwardVector.clone().multiplyScalar(3.0);
+  const lookAheadOffset = forwardVector.clone().multiplyScalar(lookAheadDist);
   const idealLookAt = new THREE.Vector3()
     .copy(carState.position)
     .add(lookAheadOffset)
-    .add(new THREE.Vector3(0, 1.1, 0));
+    .add(new THREE.Vector3(0, 0.9, 0));
 
   currentCameraLookAt.lerp(idealLookAt, 0.12);
   camera.lookAt(currentCameraLookAt);
@@ -1832,9 +1804,9 @@ function updatePhysics() {
     }
   }
 
-  // 8. Update Minimap Radar (throttled every 2nd frame for smooth 60 FPS)
+  // 8. Update Minimap Radar (throttled every 3rd frame for smooth 60 FPS)
   minimapFrameCount++;
-  if (minimapFrameCount % 2 === 0) {
+  if (minimapFrameCount % 3 === 0) {
     updateMinimap();
   }
 }
@@ -2067,13 +2039,23 @@ function updateMinimap() {
   minimapCtx.save();
   minimapCtx.translate(RADAR_CX, RADAR_CY);
 
-  // Yellow Sports Coupe Arrowhead Icon
-  minimapCtx.fillStyle = '#facc15';
+  // Tata Curvv EV Coupe SUV Icon (Pristine White Body)
+  minimapCtx.fillStyle = '#f8fafc';
   minimapCtx.beginPath();
-  minimapCtx.moveTo(0, -12);
-  minimapCtx.lineTo(8, 10);
-  minimapCtx.lineTo(0, 6);
-  minimapCtx.lineTo(-8, 10);
+  minimapCtx.moveTo(0, -13);
+  minimapCtx.lineTo(7.5, 9);
+  minimapCtx.lineTo(0, 5);
+  minimapCtx.lineTo(-7.5, 9);
+  minimapCtx.closePath();
+  minimapCtx.fill();
+
+  // Contrast Black Coupe Roof Inset
+  minimapCtx.fillStyle = '#0a0f1d';
+  minimapCtx.beginPath();
+  minimapCtx.moveTo(0, -6);
+  minimapCtx.lineTo(3.5, 4);
+  minimapCtx.lineTo(0, 2);
+  minimapCtx.lineTo(-3.5, 4);
   minimapCtx.closePath();
   minimapCtx.fill();
 

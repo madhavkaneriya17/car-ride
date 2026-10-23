@@ -16,7 +16,8 @@
   box-sizing: border-box;
 }
 
-body, html {
+body,
+html {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -308,7 +309,7 @@ kbd {
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   padding: 3px 7px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 /* Bottom Right Dock (Minimap + Action Buttons) */
@@ -606,14 +607,17 @@ kbd {
 .travel-grid::-webkit-scrollbar {
   width: 6px;
 }
+
 .travel-grid::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 999px;
 }
+
 .travel-grid::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 999px;
 }
+
 .travel-grid::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.35);
 }
@@ -1204,22 +1208,46 @@ kbd {
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-16px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.55; transform: scale(0.88); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.55;
+    transform: scale(0.88);
+  }
 }
 
 @media (max-width: 768px) {
-  .ui-overlay { padding: 14px; }
+  .ui-overlay {
+    padding: 14px;
+  }
+
   .speedometer-hud {
     top: auto;
     bottom: 240px;
@@ -1227,15 +1255,76 @@ kbd {
     padding: 10px 14px;
     min-width: 140px;
   }
-  .controls-hint { display: none; }
+
+  .controls-hint {
+    display: none;
+  }
+
   .bottom-right-dock {
     bottom: 14px;
     right: 14px;
   }
-  .travel-grid { grid-template-columns: 1fr; }
-  .canvas-wrap.round-wrap { width: 180px; height: 180px; }
-  .minimap-card.round-radar.expanded .canvas-wrap.round-wrap { width: 250px; height: 250px; }
-  .page-modal-container { height: 95vh; }
-  .auto-exit-badge { display: none; }
+
+  .travel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas-wrap.round-wrap {
+    width: 180px;
+    height: 180px;
+  }
+
+  .minimap-card.round-radar.expanded .canvas-wrap.round-wrap {
+    width: 250px;
+    height: 250px;
+  }
+
+  .page-modal-container {
+    height: 95vh;
+  }
+
+  .auto-exit-badge {
+    display: none;
+  }
 }
 
+/* Luxury Paint Color Selector Chips */
+.color-palette-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  pointer-events: auto;
+}
+
+.color-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.color-chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  padding: 0;
+  outline: none;
+}
+
+.color-chip:hover {
+  transform: scale(1.22);
+  border-color: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+}
+
+.color-chip.active {
+  transform: scale(1.28);
+  border-color: #38bdf8;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.8), inset 0 0 4px rgba(255, 255, 255, 0.8);
+}

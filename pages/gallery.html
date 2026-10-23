@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zone 9: Gallery / Media</title>
+  <title>Zone 9: Gallery & Media - Tata Curvv EV Showcase</title>
   <link rel="stylesheet" href="pages.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -13,39 +15,227 @@
       <button class="back-btn" onclick="window.parent.closePageModal ? window.parent.closePageModal() : window.history.back()">
         ← Back to 3D Ride
       </button>
-      <span class="badge" style="color: #f43f5e; border-color: rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.15);">Zone 09 • Visual Media</span>
+      <span class="badge" style="color: #f43f5e; border-color: rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.15);">
+        Zone 09 • Visual Media & Showcase
+      </span>
     </div>
 
     <header class="page-header">
       <h1 class="page-title">Gallery & Media</h1>
-      <p class="page-subtitle">Visual captures, voxel world designs and real-time 3D models</p>
+      <p class="page-subtitle">Official Tata Curvv EV multi-angle showcase, interactive 3D assets, and digital models</p>
     </header>
 
-    <div class="grid-3">
-      <div class="card" style="padding: 1.25rem;">
-        <div style="height: 140px; background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: 1rem;">
-          🏎️
+    <!-- Premier Hero Vehicle: Apex Cyber Coupe SUV -->
+    <section class="car-card" id="apex-showcase" style="border-color: rgba(245, 158, 11, 0.4); box-shadow: 0 12px 32px rgba(245, 158, 11, 0.12); margin-bottom: 32px;">
+      <div class="car-card-header">
+        <div>
+          <div class="car-badge-row">
+            <span class="badge" style="color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.15); margin-bottom: 0;">
+              ⚡ Selected Model
+            </span>
+            <span class="view-indicator-pill" style="border-color: rgba(251, 191, 36, 0.3); color: #fbbf24;">Active 3D Drive Car</span>
+          </div>
+          <h2 class="car-title" style="color: #ffffff;">Apex Cyber Coupe SUV</h2>
+          <p class="car-subtitle">Matte stealth titanium body, horizon matrix LED lightbar, radiant amber neon air intake bezels, and aggressive geometric aero alloy wheels.</p>
         </div>
-        <h4 style="color:#fff;">Cyber Coupe Chassis</h4>
-        <p style="font-size: 0.85rem;">Aerodynamic voxel sports car with LED strips and carbon fiber wing.</p>
+        <div class="car-status-pill" style="border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.1);">
+          <span class="pulse-dot" style="background: #fbbf24; box-shadow: 0 0 10px #fbbf24;"></span>
+          <span style="color: #fbbf24;">Live in 3D Drive</span>
+        </div>
       </div>
 
+      <div class="car-stage-wrapper">
+        <div class="car-stage" style="background: linear-gradient(135deg, #0f141c 0%, #171d26 100%);">
+          <img 
+            src="../public/assets/images/apex-cyber-suv.jpg" 
+            alt="Apex Cyber Coupe SUV" 
+            class="car-main-img" 
+            style="border-radius: 12px; object-fit: cover; max-height: 520px; width: 100%;"
+          >
+          <div class="angle-floating-tag" style="background: rgba(15, 23, 42, 0.85); border-color: rgba(251, 191, 36, 0.5); color: #fbbf24;">
+            <span>⚡</span>
+            <span>Master Beauty Shot</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Professional Car Listing Section: Tata Curvv EV Multi-Angle Gallery -->
+    <section class="car-card" id="curvv-showcase" aria-labelledby="car-title-heading">
+      <div class="car-card-header">
+        <div>
+          <div class="car-badge-row">
+            <span class="badge" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); margin-bottom: 0;">
+              Electric Coupe SUV
+            </span>
+            <span class="view-indicator-pill" id="view-indicator">Angle 1 of 5</span>
+          </div>
+          <h2 class="car-title" id="car-title-heading">Tata Curvv EV</h2>
+          <p class="car-subtitle">High-resolution exterior perspectives capturing the distinctive coupe roofline and modern EV design language.</p>
+        </div>
+        <div class="car-status-pill">
+          <span class="pulse-dot"></span>
+          <span>5 Angle Gallery Active</span>
+        </div>
+      </div>
+
+      <!-- Main Interactive Image Area (Contain, Consistent Proportions, Zero Layout Shift) -->
+      <div class="car-stage-wrapper">
+        <div class="car-stage" title="Click to view fullscreen">
+          <img 
+            id="main-car-img" 
+            src="../public/assets/images/tata-curvv-ev-side.png" 
+            alt="Tata Curvv EV - Side view" 
+            class="car-main-img" 
+            width="930" 
+            height="620"
+          >
+
+          <!-- Floating Angle Label Pill -->
+          <div class="angle-floating-tag">
+            <span>📐</span>
+            <span id="angle-tag-text">Side View</span>
+          </div>
+
+          <!-- Zoom Hint -->
+          <button class="stage-zoom-hint" id="stage-zoom-hint" aria-label="Open fullscreen image view">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+            </svg>
+            <span>Expand</span>
+          </button>
+
+          <!-- Navigation Arrow Buttons -->
+          <button class="gallery-nav-btn prev" id="car-prev-btn" aria-label="Previous angle (or Left Arrow)" title="Previous View">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <button class="gallery-nav-btn next" id="car-next-btn" aria-label="Next angle (or Right Arrow)" title="Next View">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+
+        <!-- 5-Angle Thumbnail Gallery Navigation Strip -->
+        <div class="thumbnail-strip" role="tablist" aria-label="Tata Curvv EV 5 Image Views">
+          <button class="thumb-btn active" data-index="0" role="tab" aria-selected="true" aria-label="View 1: Side view">
+            <div class="thumb-img-wrap">
+              <img src="../public/assets/images/tata-curvv-ev-side.png" alt="Thumbnail Side View" width="930" height="620">
+            </div>
+            <span class="thumb-label">1. Side</span>
+          </button>
+
+          <button class="thumb-btn" data-index="1" role="tab" aria-selected="false" aria-label="View 2: Front three-quarter view">
+            <div class="thumb-img-wrap">
+              <img src="../public/assets/images/tata-curvv-ev-front-three-quarter.png" alt="Thumbnail Front 3/4 View" width="930" height="620">
+            </div>
+            <span class="thumb-label">2. Front 3/4</span>
+          </button>
+
+          <button class="thumb-btn" data-index="2" role="tab" aria-selected="false" aria-label="View 3: Front view">
+            <div class="thumb-img-wrap">
+              <img src="../public/assets/images/tata-curvv-ev-front.png" alt="Thumbnail Front View" width="930" height="620">
+            </div>
+            <span class="thumb-label">3. Front</span>
+          </button>
+
+          <button class="thumb-btn" data-index="3" role="tab" aria-selected="false" aria-label="View 4: Rear view">
+            <div class="thumb-img-wrap">
+              <img src="../public/assets/images/tata-curvv-ev-rear.png" alt="Thumbnail Rear View" width="930" height="620">
+            </div>
+            <span class="thumb-label">4. Rear</span>
+          </button>
+
+          <button class="thumb-btn" data-index="4" role="tab" aria-selected="false" aria-label="View 5: Rear three-quarter view">
+            <div class="thumb-img-wrap">
+              <img src="../public/assets/images/tata-curvv-ev-rear-three-quarter.png" alt="Thumbnail Rear 3/4 View" width="930" height="620">
+            </div>
+            <span class="thumb-label">5. Rear 3/4</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Consistent Specifications & Action Buttons -->
+      <div class="car-footer">
+        <div class="car-tags-row">
+          <span class="skill-tag">⚡ Pure Electric</span>
+          <span class="skill-tag">🏎️ Aerodynamic Coupe</span>
+          <span class="skill-tag">📐 5 Viewing Angles</span>
+          <span class="skill-tag">🎨 Original Factory Assets</span>
+        </div>
+        <div class="car-actions-group">
+          <a href="car-details.html" class="btn-primary" id="view-details-btn">
+            <span>Vehicle Details</span> ↗
+          </a>
+          <button class="back-btn" id="open-lightbox-btn" type="button">
+            <span>🔍 Inspect Fullscreen</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Additional Project Media Showcase -->
+    <h3 style="margin-bottom: 1rem; color: #ffffff;">Additional 3D Assets & Environments</h3>
+    <div class="grid-2">
       <div class="card" style="padding: 1.25rem;">
         <div style="height: 140px; background: linear-gradient(135deg, #065f46, #10b981); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: 1rem;">
           🌲
         </div>
-        <h4 style="color:#fff;">Voxel Forest Biome</h4>
-        <p style="font-size: 0.85rem;">Multi-tier Minecraft foliage blocks with procedural shading.</p>
+        <h4 style="color:#fff; margin-bottom: 0.35rem;">Voxel Town & Nature Biome</h4>
+        <p style="font-size: 0.88rem; color: #cbd5e1;">Multi-tier foliage, procedural asphalt road network, and real-time directional sunlight shadows.</p>
       </div>
 
       <div class="card" style="padding: 1.25rem;">
         <div style="height: 140px; background: linear-gradient(135deg, #7c2d12, #f97316); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: 1rem;">
           🚙
         </div>
-        <h4 style="color:#fff;">Safari Jeep & Truck</h4>
-        <p style="font-size: 0.85rem;">NPC AI vehicles cruising the town roads and interacting with players.</p>
+        <h4 style="color:#fff; margin-bottom: 0.35rem;">Dynamic Traffic Vehicles</h4>
+        <p style="font-size: 0.88rem; color: #cbd5e1;">AI-navigated vehicles cruising the town crossroads with responsive braking lights and pathfinding.</p>
       </div>
     </div>
   </div>
+
+  <!-- Fullscreen Modal / Lightbox -->
+  <div id="car-lightbox-modal" class="car-lightbox" role="dialog" aria-modal="true" aria-label="Vehicle Fullscreen Viewer">
+    <div class="lightbox-topbar">
+      <div class="lightbox-title-box">
+        <span class="badge" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); margin-bottom: 0;">
+          Tata Curvv EV
+        </span>
+        <h3 id="lightbox-angle-title" style="margin: 0; font-size: 1.15rem; color: #fff;">Side View (1/5)</h3>
+      </div>
+      <button id="close-lightbox-btn" class="lightbox-close-btn" aria-label="Close fullscreen modal">&times;</button>
+    </div>
+
+    <div class="lightbox-body">
+      <button class="gallery-nav-btn prev" id="lightbox-prev-btn" aria-label="Previous angle" style="left: 20px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+
+      <div class="lightbox-stage">
+        <img id="lightbox-car-img" src="../public/assets/images/tata-curvv-ev-side.png" alt="Tata Curvv EV High Resolution View" class="lightbox-img">
+      </div>
+
+      <button class="gallery-nav-btn next" id="lightbox-next-btn" aria-label="Next angle" style="right: 20px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+
+    <div class="lightbox-caption-bar">
+      <p id="lightbox-caption">Side view: Streamlined coupe-SUV silhouette with flush door handles and aerodynamic alloy design.</p>
+      <span style="font-size: 0.78rem; color: #94a3b8; display: block; margin-top: 4px;">Use ← and → arrow keys to navigate, Esc to close</span>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initCarGallery } from './car-gallery.js';
+    initCarGallery({ container: document.getElementById('curvv-showcase') });
+  </script>
 </body>
 </html>
